@@ -223,6 +223,17 @@ void pcd_14a_reader_reset(void) {
         // Define common mode and receive common mode and receiveMiFare cartoon communication, CRC initial value 0x6363
         write_register_single(ModeReg, 0x3D);
 
+        // Maximize the receiver gain (RxGain = 111b, 48dB). RFCfgReg is
+        // never written elsewhere, so without this the RC522 runs on its
+        // power-on-reset default (0x48, RxGain = 100b, 33dB). Tags with a
+        // weak/small/degraded antenna (common in toys, figurines, worn
+        // access cards, etc.) often answer REQA (a short, fixed, cheap
+        // response) fine but fail to be heard during anticollision/select,
+        // which needs the reader to pick up a much weaker load-modulated
+        // signal from the tag. Maximum RxGain is the standard fix for
+        // exactly that symptom and has no downside for normal tags.
+        write_register_single(RFCfgReg, 0x70);
+
         bsp_delay_ms(10);
     }
 }
