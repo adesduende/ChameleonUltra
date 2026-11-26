@@ -252,26 +252,25 @@ void pcd_14a_reader_reset(void) {
 
         // EXPERIMENTAL, NOT YET VALIDATED AGAINST NORMAL TAGS. Lower
         // RxThresholdReg's MinLevel[3:0] field from its power-on-reset
-        // default of 1000b (8) to 0100b (4), keeping CollLevel[2:0]
+        // default of 1000b (8) to 0110b (6), keeping CollLevel[2:0]
         // unchanged (100b = 4, same as reset) and the reserved bit at 0:
-        // 0x84 -> 0x44. Per the datasheet (RxThresholdReg, 0x18), MinLevel
+        // 0x84 -> 0x64. Per the datasheet (RxThresholdReg, 0x18), MinLevel
         // "defines the minimum signal strength at the decoder input that
         // will be accepted -- if the signal strength is below this level
-        // it is not evaluated". A tag whose backscatter amplitude decays
-        // mid-response (e.g. because its own internal power reserve is
-        // draining, not a reader-side power/sensitivity problem -- RxGain
-        // and CW drive are already maxed above) would have its later bits
-        // silently dropped by this gate even though the earlier ones were
-        // accepted fine, which matches the symptom under test: responses
-        // that are correctly started but truncated after the first byte.
-        // The datasheet notes this effect is non-linear, so this is a
-        // moderate halving, not an aggressive drop to the minimum -- going
-        // too low risks the decoder accepting noise as spurious bits for
-        // every tag, not just weak ones. THIS NEEDS TO BE TESTED AGAINST
-        // NORMAL-STRENGTH TAGS before being considered for merge: it is
-        // the kind of change that could plausibly make reads *less*
-        // reliable in the general case even if it helps this one weak tag.
-        write_register_single(RxThresholdReg, 0x44);
+        // it is not evaluated".
+        //
+        // 0x44 (MinLevel=4) was tried first and field-tested as too
+        // aggressive: it produced reproducible-looking but spurious
+        // scan14ATag successes (all-zero UID, non-standard SAK) that never
+        // actually surfaced as a card in the app, the fast-sweep polling
+        // loop never stopped on them as it should for a real UID, and
+        // STATUS_HF_COLLISION started appearing where it hadn't before --
+        // all consistent with the decoder now accepting electrical noise
+        // as valid bits, not just genuinely weak signal. 0x64 (MinLevel=6)
+        // is a smaller, more conservative reduction from the reset value
+        // for a second round of testing. THIS STILL NEEDS TO BE TESTED
+        // AGAINST NORMAL-STRENGTH TAGS before being considered for merge.
+        write_register_single(RxThresholdReg, 0x64);
 
         bsp_delay_ms(10);
     }
