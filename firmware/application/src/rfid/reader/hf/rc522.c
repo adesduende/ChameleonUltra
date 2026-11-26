@@ -250,6 +250,29 @@ void pcd_14a_reader_reset(void) {
         // other half of that fix.
         write_register_single(CWGsCfgReg, 0x3F);
 
+        // EXPERIMENTAL, NOT YET VALIDATED AGAINST NORMAL TAGS. Lower
+        // RxThresholdReg's MinLevel[3:0] field from its power-on-reset
+        // default of 1000b (8) to 0100b (4), keeping CollLevel[2:0]
+        // unchanged (100b = 4, same as reset) and the reserved bit at 0:
+        // 0x84 -> 0x44. Per the datasheet (RxThresholdReg, 0x18), MinLevel
+        // "defines the minimum signal strength at the decoder input that
+        // will be accepted -- if the signal strength is below this level
+        // it is not evaluated". A tag whose backscatter amplitude decays
+        // mid-response (e.g. because its own internal power reserve is
+        // draining, not a reader-side power/sensitivity problem -- RxGain
+        // and CW drive are already maxed above) would have its later bits
+        // silently dropped by this gate even though the earlier ones were
+        // accepted fine, which matches the symptom under test: responses
+        // that are correctly started but truncated after the first byte.
+        // The datasheet notes this effect is non-linear, so this is a
+        // moderate halving, not an aggressive drop to the minimum -- going
+        // too low risks the decoder accepting noise as spurious bits for
+        // every tag, not just weak ones. THIS NEEDS TO BE TESTED AGAINST
+        // NORMAL-STRENGTH TAGS before being considered for merge: it is
+        // the kind of change that could plausibly make reads *less*
+        // reliable in the general case even if it helps this one weak tag.
+        write_register_single(RxThresholdReg, 0x44);
+
         bsp_delay_ms(10);
     }
 }
