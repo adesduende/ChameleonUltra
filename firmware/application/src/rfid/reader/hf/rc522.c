@@ -234,6 +234,22 @@ void pcd_14a_reader_reset(void) {
         // exactly that symptom and has no downside for normal tags.
         write_register_single(RFCfgReg, 0x70);
 
+        // Maximize the antenna driver's continuous-wave (unmodulated
+        // carrier) conductance too (CWGsP[5:0] = 111111b = 0x3F; bits 7-6
+        // reserved). This register is also never written elsewhere, so it
+        // was left at its power-on-reset default of 0x20 (datasheet Table
+        // 101/103), well below its 0x3F maximum. Unlike ModGsCfgReg (the
+        // driver conductance used *during* modulation, which the datasheet
+        // says has no effect once Force100ASK is set -- and it is, just
+        // above), CWGsCfgReg governs the carrier strength the rest of the
+        // time, which is what actually powers up a passive tag. Weak/
+        // small-antenna tags that only just manage to answer REQA but
+        // never complete anticollision/select even with RxGain already
+        // maxed are a symptom of marginal power delivery, not just of the
+        // reader being unable to *hear* the tag's reply -- this is the
+        // other half of that fix.
+        write_register_single(CWGsCfgReg, 0x3F);
+
         bsp_delay_ms(10);
     }
 }
